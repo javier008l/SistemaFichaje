@@ -20,7 +20,7 @@ namespace SistemaFichaje.Services
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("👀 Vigilante de Fichajes iniciado.");
+            _logger.LogInformation("Vigilante de Fichajes iniciado.");
 
             while (!stoppingToken.IsCancellationRequested)
             {
@@ -67,7 +67,7 @@ namespace SistemaFichaje.Services
                         // ¡ALERTA! Usuario se olvidó de salir
                         _logger.LogWarning($"⚠️ Usuario {evento.UsuarioExternoId} olvidó fichar salida.");
 
-                        // Enviamos correo (Aquí usas tu correo fijo o buscas el del usuario si tuvieras tabla de usuarios)
+                        // Enviamos correo (Aquí se usa uncorreo fijo o se busca el del usuario si estuviera la tabla de usuarios)
                         await emailService.EnviarCorreoAsync(
                             "javierarangoaristizabal@gmail.com", // Aquí iría el email real del usuario
                             "⚠️ ¿Olvidaste fichar la salida?",

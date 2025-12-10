@@ -11,8 +11,8 @@ namespace SistemaFichaje.Controllers
         private readonly AppDbContext _context;
         private readonly IEmailService _emailService;
 
-        // SIMULACIÓN: En tu CRM real, esto vendría de User.Identity.GetUserId()
-        // Usamos un GUID fijo para que puedas probarlo ya mismo sin loguearte
+        // SIMULACIÓN: En un sistema real, esto vendría de User.Identity.GetUserId()
+        // Usamos un GUID fijo para que pueder probarlo ya mismo sin loguearse
         private readonly Guid _usuarioSimulado = Guid.Parse("aaaa1111-bb22-cc33-dd44-eeee55556666");
 
         public FichajeController(AppDbContext context, IEmailService emailService)
@@ -46,19 +46,19 @@ namespace SistemaFichaje.Controllers
 
                 case TipoFichaje.Salida:
                     // Solo puedes SALIR si estás TRABAJANDO (Entrada o Volver de Pausa)
-                    // (Opcional: Si quieres permitir salir estando en pausa, añade '|| estadoActual == TipoFichaje.InicioPausa')
+                    // (Opcional: Si se quiere permitir salir estando en pausa, se añade '|| estadoActual == TipoFichaje.InicioPausa')
                     if (estadoActual == TipoFichaje.Entrada || estadoActual == TipoFichaje.FinPausa) 
                         esAccionValida = true;
                     break;
 
                 case TipoFichaje.InicioPausa:
-                    // Solo puedes PAUSAR si estás TRABAJANDO
+                    // Solo  se puede PAUSAR si está TRABAJANDO
                     if (estadoActual == TipoFichaje.Entrada || estadoActual == TipoFichaje.FinPausa) 
                         esAccionValida = true;
                     break;
 
                 case TipoFichaje.FinPausa: // (Volver de pausa)
-                    // Solo puedes VOLVER si estabas en PAUSA
+                    // Solo puede VOLVER si estaba en PAUSA
                     if (estadoActual == TipoFichaje.InicioPausa) 
                         esAccionValida = true;
                     break;
@@ -97,10 +97,11 @@ namespace SistemaFichaje.Controllers
 
             return RedirectToAction(nameof(Index));
         }
+        
         // GET: Descargar reporte en CSV
         public async Task<IActionResult> DescargarReporte()
         {
-            // 1. Obtenemos TODOS los datos del usuario (o podrías filtrar por mes actual)
+            // 1. Obtenemos TODOS los datos del usuario
             var registros = await _context.FichajeEventos
                 .Where(f => f.UsuarioExternoId == _usuarioSimulado)
                 .OrderByDescending(f => f.FechaHora)
@@ -109,27 +110,32 @@ namespace SistemaFichaje.Controllers
             // 2. Construimos el CSV en memoria
             var builder = new System.Text.StringBuilder();
 
-            // Cabecera del Excel
+            // Cabecera del Excel (Corregida, sin espacios extra)
             builder.AppendLine("Fecha,Hora,Tipo Accion,Geolocalizacion,Dispositivo");
 
             foreach (var item in registros)
             {
                 // Convertimos a hora local para que sea legible
                 var fechaLocal = item.FechaHora.ToLocalTime();
-
-                // Formato CSV: Valor1,Valor2,Valor3...
-                builder.AppendLine($"{fechaLocal:yyyy-MM-dd},{fechaLocal:HH:mm:ss},{item.Tipo},{item.Geolocalizacion},Web");
+ 
+                // para que la coma de las coordenadas (lat,lon) NO rompa las columnas.
+                builder.AppendLine($"{fechaLocal:yyyy-MM-dd},{fechaLocal:HH:mm:ss},{item.Tipo},\"{item.Geolocalizacion}\",Web");
             }
 
             // 3. Devolvemos el archivo para descarga inmediata
+            // Usamos UTF8 con BOM (Preamble) para que Excel reconozca bien los acentos/tildes si los hubiera
+            var buffer = System.Text.Encoding.UTF8.GetPreamble().Concat(System.Text.Encoding.UTF8.GetBytes(builder.ToString())).ToArray();
+
             return File(
-                System.Text.Encoding.UTF8.GetBytes(builder.ToString()),
+                buffer,
                 "text/csv",
                 $"Reporte_Fichaje_{DateTime.Now:yyyyMMdd}.csv"
             );
         }
 
-                // GET: Muestra la pantalla de fichar (con filtro opcional)
+        
+
+        // GET: Muestra la pantalla de fichar (con filtro opcional)
         public async Task<IActionResult> Index(DateTime? fechaInicio, DateTime? fechaFin)
         {
             // 1. Estado actual (para saber si pintar verde/rojo)
@@ -159,7 +165,6 @@ namespace SistemaFichaje.Controllers
             else
             {
                 // Sin filtro: Traer los 20 MÁS RECIENTES
-                // CORRECCIÓN: Primero ordenamos, LUEGO hacemos Take
                 historial = await query
                     .OrderByDescending(f => f.FechaHora) // <--- ESTO ES LA CLAVE: Nuevos primero
                     .Take(20)                            // <--- Y de esos nuevos, cogemos 20

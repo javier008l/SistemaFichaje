@@ -25,9 +25,9 @@ namespace SistemaFichaje.Services
             // Leemos la configuración (User Secrets o appsettings.json)
             var gmailSettings = _config.GetSection("GmailSettings");
             
-            string emailOrigen = gmailSettings["Email"];
-            string password = gmailSettings["AppPassword"];
-            string nombreRemitente = gmailSettings["SenderName"];
+            string? emailOrigen = gmailSettings["Email"];
+            string? password = gmailSettings["AppPassword"];
+            string? nombreRemitente = gmailSettings["SenderName"];
 
             // Configuración del cliente SMTP de Gmail
             var clienteSmtp = new SmtpClient("smtp.gmail.com")
