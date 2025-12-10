@@ -7,16 +7,17 @@
 <div class="text-center mt-5">
     <h2>⏱️ Control de Jornada</h2>
     <p class="text-muted">Registro oficial de horario</p>
-    
+
     <!-- ESTADO ACTUAL -->
     <div class="card my-4 shadow-sm">
         <div class="card-body">
-            <h3>Estado Actual: 
+            <h3>Estado Actual:
                 @if (Model.UltimoEstado == null || Model.UltimoEstado == SistemaFichaje.Models.TipoFichaje.Salida)
                 {
                     <span class="badge bg-secondary">FUERA DE JORNADA 🔴</span>
                 }
-                else if (Model.UltimoEstado == SistemaFichaje.Models.TipoFichaje.Entrada || Model.UltimoEstado == SistemaFichaje.Models.TipoFichaje.FinPausa)
+                else if (Model.UltimoEstado == SistemaFichaje.Models.TipoFichaje.Entrada || Model.UltimoEstado ==
+                SistemaFichaje.Models.TipoFichaje.FinPausa)
                 {
                     <span class="badge bg-success">TRABAJANDO 🟢</span>
                 }
@@ -35,17 +36,18 @@
         <input type="hidden" name="longitud" id="lon" />
 
         <div class="d-grid gap-2 col-6 mx-auto">
-            
+
             @* LOGICA VISUAL: Solo mostramos los botones lógicos *@
-            
+
             @if (Model.UltimoEstado == null || Model.UltimoEstado == SistemaFichaje.Models.TipoFichaje.Salida)
             {
                 <button type="submit" name="tipo" value="1" class="btn btn-success btn-lg p-4" onclick="pedirGeo()">
                     🚀 ENTRADA JORNADA
                 </button>
             }
-            
-            @if (Model.UltimoEstado == SistemaFichaje.Models.TipoFichaje.Entrada || Model.UltimoEstado == SistemaFichaje.Models.TipoFichaje.FinPausa)
+
+            @if (Model.UltimoEstado == SistemaFichaje.Models.TipoFichaje.Entrada || Model.UltimoEstado ==
+                        SistemaFichaje.Models.TipoFichaje.FinPausa)
             {
                 <button type="submit" name="tipo" value="3" class="btn btn-warning btn-lg mb-2" onclick="pedirGeo()">
                     ☕ INICIAR PAUSA
@@ -67,7 +69,14 @@
 
 <!-- TABLA DE HISTORIAL HOY -->
 <div class="mt-5">
-    <h4>📅 Ultimos Registros</h4>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4>📅 Historial de Registros</h4>
+
+        <!-- BOTÓN DE DESCARGA -->
+        <a asp-action="DescargarReporte" class="btn btn-outline-primary">
+            📥 Descargar Excel (CSV)
+        </a>
+    </div>
     <table class="table table-striped">
         <thead>
             <tr>
@@ -83,7 +92,23 @@
                     <!-- Convertimos UTC a hora local del navegador -->
                     <td>@item.FechaHora.ToLocalTime().ToString("HH:mm:ss")</td>
                     <td>@item.Tipo</td>
-                    <td><small class="text-muted">@item.Geolocalizacion</small></td>
+                    <td>
+                        @if (item.Geolocalizacion != "No permitida" && !string.IsNullOrEmpty(item.Geolocalizacion))
+                        {
+                            <a href="https://www.google.com/maps/search/?api=1&query=@item.Geolocalizacion" target="_blank"
+                                class="btn btn-sm btn-outline-info">
+                                📍 Ver Mapa
+                            </a>
+                            <!-- Opcional: mostrar coords pequeñas abajo -->
+                            <br>
+
+                            <small class="text-muted">@item.Geolocalizacion</small>
+                        }
+                        else
+                        {
+                            <span class="text-muted">🚫 Sin ubicación</span>
+                        }
+                    </td>
                 </tr>
             }
         </tbody>
@@ -94,12 +119,33 @@
 <script>
     function pedirGeo() {
         if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(function (position) {
-                document.getElementById('lat').value = position.coords.latitude;
-                document.getElementById('lon').value = position.coords.longitude;
-            });
+            navigator.geolocation.getCurrentPosition(
+                // Éxito: Guardamos coords
+                function (position) {
+                    document.getElementById('lat').value = position.coords.latitude;
+                    document.getElementById('lon').value = position.coords.longitude;
+                },
+                // Error: Avisamos (opcional)
+                function (error) {
+                    console.warn("⚠️ No se pudo obtener ubicación:", error.message);
+                    alert("Activa la ubicación para fichar correctamente");
+                }
+            );
+        } else {
+            console.error("❌ Geolocalización no soportada por este navegador.");
         }
     }
-    // Pedimos permisos nada más cargar para que no retrase el clic
-    window.onload = pedirGeo;
+
+    // Pedimos al cargar la página
+    document.addEventListener("DOMContentLoaded", function () {
+        pedirGeo();
+    });
+
+    // Y TAMBIÉN pedimos al hacer clic en cualquier botón del formulario (Doble seguridad)
+    document.getElementById("formFichaje").addEventListener("submit", function () {
+        // Intentamos una última actualización rápida antes de enviar, 
+        // aunque el submit suele ser más rápido que el GPS, 
+        // esto asegura que si ya tenemos coords cacheadas, se envíen.
+        pedirGeo();
+    });
 </script>

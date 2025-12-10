@@ -96,5 +96,39 @@ namespace SistemaFichaje.Controllers
 
             return RedirectToAction(nameof(Index));
         }
+
+        // GET: Descargar reporte en CSV
+        public async Task<IActionResult> DescargarReporte()
+        {
+            // 1. Obtenemos TODOS los datos del usuario (o podrías filtrar por mes actual)
+            var registros = await _context.FichajeEventos
+                .Where(f => f.UsuarioExternoId == _usuarioSimulado)
+                .OrderByDescending(f => f.FechaHora)
+                .ToListAsync();
+
+            // 2. Construimos el CSV en memoria
+            var builder = new System.Text.StringBuilder();
+
+            // Cabecera del Excel
+            builder.AppendLine("Fecha,Hora,Tipo Accion,Geolocalizacion,Dispositivo");
+
+            foreach (var item in registros)
+            {
+                // Convertimos a hora local para que sea legible
+                var fechaLocal = item.FechaHora.ToLocalTime();
+
+                // Formato CSV: Valor1,Valor2,Valor3...
+                builder.AppendLine($"{fechaLocal:yyyy-MM-dd},{fechaLocal:HH:mm:ss},{item.Tipo},{item.Geolocalizacion},Web");
+            }
+
+            // 3. Devolvemos el archivo para descarga inmediata
+            return File(
+                System.Text.Encoding.UTF8.GetBytes(builder.ToString()),
+                "text/csv",
+                $"Reporte_Fichaje_{DateTime.Now:yyyyMMdd}.csv"
+            );
+        }
+
+
     }
 }
