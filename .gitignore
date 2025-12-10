@@ -1,0 +1,26 @@
+# --- .NET Core ---
+bin/
+obj/
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.pdb
+
+# --- Archivos de Base de Datos Locales (IMPORTANTE) ---
+*.mdf
+*.ldf
+*.db
+*.sqlite
+
+# --- Configuración con Secretos ---
+# Ojo: appsettings.json SÍ se sube normalmente como plantilla
+# pero appsettings.Development.json a veces tiene claves reales.
+# Por seguridad, ignoramos el development si usas secretos ahí.
+appsettings.Development.json
+
+# --- Logs y Temporales ---
+*.log
+Thumbs.db
+.DS_Store

@@ -1,0 +1,105 @@
+@model SistemaFichaje.Models.FichajeViewModel
+
+@{
+    ViewData["Title"] = "Control Horario";
+}
+
+<div class="text-center mt-5">
+    <h2>⏱️ Control de Jornada</h2>
+    <p class="text-muted">Registro oficial de horario</p>
+    
+    <!-- ESTADO ACTUAL -->
+    <div class="card my-4 shadow-sm">
+        <div class="card-body">
+            <h3>Estado Actual: 
+                @if (Model.UltimoEstado == null || Model.UltimoEstado == SistemaFichaje.Models.TipoFichaje.Salida)
+                {
+                    <span class="badge bg-secondary">FUERA DE JORNADA 🔴</span>
+                }
+                else if (Model.UltimoEstado == SistemaFichaje.Models.TipoFichaje.Entrada || Model.UltimoEstado == SistemaFichaje.Models.TipoFichaje.FinPausa)
+                {
+                    <span class="badge bg-success">TRABAJANDO 🟢</span>
+                }
+                else
+                {
+                    <span class="badge bg-warning text-dark">EN PAUSA ☕</span>
+                }
+            </h3>
+        </div>
+    </div>
+
+    <!-- BOTONES DE ACCIÓN (Formulario) -->
+    <form asp-action="Fichar" method="post" id="formFichaje">
+        <!-- Campos ocultos para geolocalización -->
+        <input type="hidden" name="latitud" id="lat" />
+        <input type="hidden" name="longitud" id="lon" />
+
+        <div class="d-grid gap-2 col-6 mx-auto">
+            
+            @* LOGICA VISUAL: Solo mostramos los botones lógicos *@
+            
+            @if (Model.UltimoEstado == null || Model.UltimoEstado == SistemaFichaje.Models.TipoFichaje.Salida)
+            {
+                <button type="submit" name="tipo" value="1" class="btn btn-success btn-lg p-4" onclick="pedirGeo()">
+                    🚀 ENTRADA JORNADA
+                </button>
+            }
+            
+            @if (Model.UltimoEstado == SistemaFichaje.Models.TipoFichaje.Entrada || Model.UltimoEstado == SistemaFichaje.Models.TipoFichaje.FinPausa)
+            {
+                <button type="submit" name="tipo" value="3" class="btn btn-warning btn-lg mb-2" onclick="pedirGeo()">
+                    ☕ INICIAR PAUSA
+                </button>
+                <button type="submit" name="tipo" value="2" class="btn btn-danger btn-lg" onclick="pedirGeo()">
+                    🏁 FIN DE JORNADA
+                </button>
+            }
+
+            @if (Model.UltimoEstado == SistemaFichaje.Models.TipoFichaje.InicioPausa)
+            {
+                <button type="submit" name="tipo" value="4" class="btn btn-primary btn-lg p-4" onclick="pedirGeo()">
+                    🔙 VOLVER DE PAUSA
+                </button>
+            }
+        </div>
+    </form>
+</div>
+
+<!-- TABLA DE HISTORIAL HOY -->
+<div class="mt-5">
+    <h4>📅 Ultimos Registros</h4>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Hora</th>
+                <th>Acción</th>
+                <th>Ubicación</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.HistorialHoy)
+            {
+                <tr>
+                    <!-- Convertimos UTC a hora local del navegador -->
+                    <td>@item.FechaHora.ToLocalTime().ToString("HH:mm:ss")</td>
+                    <td>@item.Tipo</td>
+                    <td><small class="text-muted">@item.Geolocalizacion</small></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<!-- SCRIPT DE GEOLOCALIZACIÓN -->
+<script>
+    function pedirGeo() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(function (position) {
+                document.getElementById('lat').value = position.coords.latitude;
+                document.getElementById('lon').value = position.coords.longitude;
+            });
+        }
+    }
+    // Pedimos permisos nada más cargar para que no retrase el clic
+    window.onload = pedirGeo;
+</script>
