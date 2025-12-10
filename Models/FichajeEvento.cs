@@ -16,7 +16,7 @@ namespace SistemaFichaje.Models
     public class FichajeEvento
     {
         [Key]
-        public int Id { get; set; }
+        public Guid Id { get; set; }
 
         // ID del usuario que viene del sistema externo (CRM, ERP, etc.)
         [Required]

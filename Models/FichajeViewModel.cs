@@ -12,6 +12,6 @@ namespace SistemaFichaje.Models
         public List<FichajeEvento> HistorialHoy { get; set; } = new List<FichajeEvento>();
         
         // Para mostrar mensajes de error o éxito
-        public string Mensaje { get; set; }
+        public string? Mensaje { get; set; }
     }
 }

@@ -1,7 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using SistemaFichaje.Models;
+using SistemaFichaje.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddTransient<IEmailService, SmtpEmailService>();
+builder.Services.AddHostedService<VigilanteService>();
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();

@@ -12,8 +12,8 @@ using SistemaFichaje.Models;
 namespace SistemaFichaje.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251210000028_Inicial")]
-    partial class Inicial
+    [Migration("20251210041258_CrearTablaFichajes")]
+    partial class CrearTablaFichajes
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -27,11 +27,9 @@ namespace SistemaFichaje.Migrations
 
             modelBuilder.Entity("SistemaFichaje.Models.FichajeEvento", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("EsCorreccionManual")
                         .HasColumnType("bit");

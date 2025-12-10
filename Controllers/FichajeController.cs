@@ -1,20 +1,24 @@
 using Microsoft.AspNetCore.Mvc;
 using SistemaFichaje.Models;
 using Microsoft.EntityFrameworkCore;
+using SistemaFichaje.Services;
+
 
 namespace SistemaFichaje.Controllers
 {
     public class FichajeController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly IEmailService _emailService;
 
         // SIMULACIÓN: En tu CRM real, esto vendría de User.Identity.GetUserId()
         // Usamos un GUID fijo para que puedas probarlo ya mismo sin loguearte
         private readonly Guid _usuarioSimulado = Guid.Parse("aaaa1111-bb22-cc33-dd44-eeee55556666");
 
-        public FichajeController(AppDbContext context)
+        public FichajeController(AppDbContext context, IEmailService emailService)
         {
             _context = context;
+            _emailService = emailService;
         }
 
         // GET: Muestra la pantalla de fichar
@@ -69,6 +73,7 @@ namespace SistemaFichaje.Controllers
             // Creamos el registro inmutable
             var nuevoFichaje = new FichajeEvento
             {
+                Id = Guid.NewGuid(),
                 UsuarioExternoId = _usuarioSimulado,
                 Tipo = tipo,
                 FechaHora = DateTimeOffset.UtcNow, // SIEMPRE UTC en servidor
@@ -77,6 +82,17 @@ namespace SistemaFichaje.Controllers
 
             _context.FichajeEventos.Add(nuevoFichaje);
             await _context.SaveChangesAsync();
+
+            // ENVIAR CORREO SI ES SALIDA ---
+            if (tipo == TipoFichaje.Salida)
+            {
+                // para la prueba uso mi correo
+                string emailDestino = "javierarangoaristizabal@gmail.com";
+
+                string asunto = "✅ Registro de Salida Exitoso";
+                string mensaje = $"<h1>Has salido correctamente</h1><p>Hora registrada: {DateTime.Now:HH:mm}</p>";
+                await _emailService.EnviarCorreoAsync(emailDestino, asunto, mensaje);
+            }
 
             return RedirectToAction(nameof(Index));
         }
