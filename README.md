@@ -68,6 +68,9 @@ dotnet watch run
 
 La aplicación estará disponible en `http://localhost:5209` (o el puerto que indique la consola).
 
+> **IMPORTANTE:** Para ver el módulo de fichaje, navega a la ruta:
+> 👉 [**http://localhost:5209/Fichaje**](http://localhost:5209/Fichaje)
+
 ---
 
 ## 🧪 Cómo probar la Geolocalización (GPS)

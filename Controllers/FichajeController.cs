@@ -21,82 +21,82 @@ namespace SistemaFichaje.Controllers
             _emailService = emailService;
         }
 
-        // GET: Muestra la pantalla de fichar
-        public async Task<IActionResult> Index()
-        {
-            // 1. Buscamos el ÚLTIMO evento de este usuario para saber su estado
-            var ultimoEvento = await _context.FichajeEventos
-                .Where(f => f.UsuarioExternoId == _usuarioSimulado)
-                .OrderByDescending(f => f.FechaHora)
-                .FirstOrDefaultAsync();
-
-            // 2. Buscamos el historial ultimos 20 eventos
-            var historial = await _context.FichajeEventos
-                .Where(f => f.UsuarioExternoId == _usuarioSimulado)
-                .OrderByDescending(f => f.FechaHora)
-                .Take(20) // Limitamos a 20 para no sobrecargar
-                .ToListAsync();
-
-            var modelo = new FichajeViewModel
-            {
-                UltimoEstado = ultimoEvento?.Tipo,
-                HistorialHoy = historial
-            };
-
-            return View(modelo);
-        }
-
-        // POST: Recibe la acción del botón (Entrar, Salir, Pausa...)
+         // POST: Recibe la acción del botón (Entrar, Salir, Pausa...)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Fichar(TipoFichaje tipo, string? latitud, string? longitud)
         {
-
-            // --- VALIDACIÓN NUEVA ---
-            // Verificamos el último estado real en BD antes de guardar nada
+            // 1. Buscamos el estado REAL en la base de datos en este preciso instante
             var ultimoEvento = await _context.FichajeEventos
                 .Where(f => f.UsuarioExternoId == _usuarioSimulado)
                 .OrderByDescending(f => f.FechaHora)
                 .FirstOrDefaultAsync();
 
             TipoFichaje? estadoActual = ultimoEvento?.Tipo;
+            bool esAccionValida = false;
 
-            // Reglas de negocio básicas:
-            // No puedes ENTRAR si ya estás DENTRO
-            if (tipo == TipoFichaje.Entrada && (estadoActual == TipoFichaje.Entrada || estadoActual == TipoFichaje.FinPausa))
-                return RedirectToAction(nameof(Index)); // Ignoramos el clic
+            // 2. VALIDACIÓN ESTRICTA DE TRANSICIONES
+            switch (tipo)
+            {
+                case TipoFichaje.Entrada:
+                    // Solo puedes ENTRAR si no hay registros o el último fue SALIDA
+                    if (estadoActual == null || estadoActual == TipoFichaje.Salida) 
+                        esAccionValida = true;
+                    break;
 
-            // No puedes SALIR si ya estás FUERA
-            if (tipo == TipoFichaje.Salida && (estadoActual == null || estadoActual == TipoFichaje.Salida))
-                return RedirectToAction(nameof(Index));
+                case TipoFichaje.Salida:
+                    // Solo puedes SALIR si estás TRABAJANDO (Entrada o Volver de Pausa)
+                    // (Opcional: Si quieres permitir salir estando en pausa, añade '|| estadoActual == TipoFichaje.InicioPausa')
+                    if (estadoActual == TipoFichaje.Entrada || estadoActual == TipoFichaje.FinPausa) 
+                        esAccionValida = true;
+                    break;
 
-            // Creamos el registro inmutable
+                case TipoFichaje.InicioPausa:
+                    // Solo puedes PAUSAR si estás TRABAJANDO
+                    if (estadoActual == TipoFichaje.Entrada || estadoActual == TipoFichaje.FinPausa) 
+                        esAccionValida = true;
+                    break;
+
+                case TipoFichaje.FinPausa: // (Volver de pausa)
+                    // Solo puedes VOLVER si estabas en PAUSA
+                    if (estadoActual == TipoFichaje.InicioPausa) 
+                        esAccionValida = true;
+                    break;
+            }
+
+            // 3. Si la acción no tiene sentido lógico, recargamos la página sin guardar
+            if (!esAccionValida)
+            {
+                // Esto hará que la pestaña "vieja" se actualice y muestre los botones correctos
+                return RedirectToAction(nameof(Index)); 
+            }
+
+            // --- AQUI EMPIEZA EL GUARDADO (Solo si pasó la validación) ---
             var nuevoFichaje = new FichajeEvento
             {
                 Id = Guid.NewGuid(),
                 UsuarioExternoId = _usuarioSimulado,
                 Tipo = tipo,
-                FechaHora = DateTimeOffset.UtcNow, // SIEMPRE UTC en servidor
+                FechaHora = DateTimeOffset.UtcNow,
                 Geolocalizacion = (latitud != null && longitud != null) ? $"{latitud},{longitud}" : "No permitida"
             };
 
             _context.FichajeEventos.Add(nuevoFichaje);
             await _context.SaveChangesAsync();
 
-            // ENVIAR CORREO SI ES SALIDA ---
+            // ENVIAR CORREO SI ES SALIDA
             if (tipo == TipoFichaje.Salida)
             {
-                // para la prueba uso mi correo
                 string emailDestino = "javierarangoaristizabal@gmail.com";
-
                 string asunto = "✅ Registro de Salida Exitoso";
                 string mensaje = $"<h1>Has salido correctamente</h1><p>Hora registrada: {DateTime.Now:HH:mm}</p>";
-                await _emailService.EnviarCorreoAsync(emailDestino, asunto, mensaje);
+                
+                // Fire & Forget (opcional para que no tarde la carga)
+                _ = _emailService.EnviarCorreoAsync(emailDestino, asunto, mensaje);
             }
 
             return RedirectToAction(nameof(Index));
         }
-
         // GET: Descargar reporte en CSV
         public async Task<IActionResult> DescargarReporte()
         {
@@ -128,6 +128,55 @@ namespace SistemaFichaje.Controllers
                 $"Reporte_Fichaje_{DateTime.Now:yyyyMMdd}.csv"
             );
         }
+
+                // GET: Muestra la pantalla de fichar (con filtro opcional)
+        public async Task<IActionResult> Index(DateTime? fechaInicio, DateTime? fechaFin)
+        {
+            // 1. Estado actual (para saber si pintar verde/rojo)
+            var ultimoEvento = await _context.FichajeEventos
+                .Where(f => f.UsuarioExternoId == _usuarioSimulado)
+                .OrderByDescending(f => f.FechaHora)
+                .FirstOrDefaultAsync();
+
+            // 2. Consulta base
+            var query = _context.FichajeEventos
+                .Where(f => f.UsuarioExternoId == _usuarioSimulado);
+
+            List<FichajeEvento> historial;
+
+            // --- LÓGICA DEL FILTRO ---
+            if (fechaInicio.HasValue && fechaFin.HasValue)
+            {
+                // Rango de fechas
+                var inicioUtc = fechaInicio.Value.ToUniversalTime();
+                var finUtc = fechaFin.Value.AddDays(1).AddTicks(-1).ToUniversalTime();
+
+                historial = await query
+                    .Where(f => f.FechaHora >= inicioUtc && f.FechaHora <= finUtc)
+                    .OrderByDescending(f => f.FechaHora) // Ordenamos lo filtrado
+                    .ToListAsync();
+            }
+            else
+            {
+                // Sin filtro: Traer los 20 MÁS RECIENTES
+                // CORRECCIÓN: Primero ordenamos, LUEGO hacemos Take
+                historial = await query
+                    .OrderByDescending(f => f.FechaHora) // <--- ESTO ES LA CLAVE: Nuevos primero
+                    .Take(20)                            // <--- Y de esos nuevos, cogemos 20
+                    .ToListAsync();
+            }
+
+            var modelo = new FichajeViewModel
+            {
+                UltimoEstado = ultimoEvento?.Tipo,
+                HistorialHoy = historial,
+                FechaInicio = fechaInicio ?? DateTime.Today,
+                FechaFin = fechaFin ?? DateTime.Today
+            };
+
+            return View(modelo);
+        }
+
 
 
     }

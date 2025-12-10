@@ -16,8 +16,7 @@
                 {
                     <span class="badge bg-secondary">FUERA DE JORNADA 🔴</span>
                 }
-                else if (Model.UltimoEstado == SistemaFichaje.Models.TipoFichaje.Entrada || Model.UltimoEstado ==
-                SistemaFichaje.Models.TipoFichaje.FinPausa)
+                else if (Model.UltimoEstado == SistemaFichaje.Models.TipoFichaje.Entrada || Model.UltimoEstado == SistemaFichaje.Models.TipoFichaje.FinPausa)
                 {
                     <span class="badge bg-success">TRABAJANDO 🟢</span>
                 }
@@ -46,8 +45,7 @@
                 </button>
             }
 
-            @if (Model.UltimoEstado == SistemaFichaje.Models.TipoFichaje.Entrada || Model.UltimoEstado ==
-                        SistemaFichaje.Models.TipoFichaje.FinPausa)
+            @if (Model.UltimoEstado == SistemaFichaje.Models.TipoFichaje.Entrada || Model.UltimoEstado == SistemaFichaje.Models.TipoFichaje.FinPausa)
             {
                 <button type="submit" name="tipo" value="3" class="btn btn-warning btn-lg mb-2" onclick="pedirGeo()">
                     ☕ INICIAR PAUSA
@@ -67,53 +65,98 @@
     </form>
 </div>
 
-<!-- TABLA DE HISTORIAL HOY -->
-<div class="mt-5">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4>📅 Historial de Registros</h4>
-
-        <!-- BOTÓN DE DESCARGA -->
-        <a asp-action="DescargarReporte" class="btn btn-outline-primary">
-            📥 Descargar Excel (CSV)
-        </a>
-    </div>
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Hora</th>
-                <th>Acción</th>
-                <th>Ubicación</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var item in Model.HistorialHoy)
-            {
-                <tr>
-                    <!-- Convertimos UTC a hora local del navegador -->
-                    <td>@item.FechaHora.ToLocalTime().ToString("HH:mm:ss")</td>
-                    <td>@item.Tipo</td>
-                    <td>
-                        @if (item.Geolocalizacion != "No permitida" && !string.IsNullOrEmpty(item.Geolocalizacion))
-                        {
-                            <a href="https://www.google.com/maps/search/?api=1&query=@item.Geolocalizacion" target="_blank"
-                                class="btn btn-sm btn-outline-info">
-                                📍 Ver Mapa
-                            </a>
-                            <!-- Opcional: mostrar coords pequeñas abajo -->
-                            <br>
-
-                            <small class="text-muted">@item.Geolocalizacion</small>
-                        }
-                        else
-                        {
-                            <span class="text-muted">🚫 Sin ubicación</span>
-                        }
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+<!-- FILTROS Y DESCARGA -->
+<div class="card card-body bg-light mb-4 mt-5">
+    <form asp-action="Index" method="get" class="row g-3 align-items-end">
+        <div class="col-auto">
+            <label class="form-label">Desde:</label>
+            <input type="date" name="fechaInicio" class="form-control" 
+                   value="@Model.FechaInicio?.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="col-auto">
+            <label class="form-label">Hasta:</label>
+            <input type="date" name="fechaFin" class="form-control" 
+                   value="@Model.FechaFin?.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary">🔍 Filtrar</button>
+            <a asp-action="Index" class="btn btn-outline-secondary">❌ Limpiar</a>
+        </div>
+        
+        <!-- Botón de Descarga alineado a la derecha -->
+        <div class="col ms-auto text-end">
+             <a asp-action="DescargarReporte" class="btn btn-success">
+                📥 Descargar Excel
+            </a>
+        </div>
+    </form>
 </div>
+
+<h4>📅 Historial de Registros</h4>
+
+<!-- TABLA DE RESULTADOS -->
+@if (Model.HistorialHoy != null && Model.HistorialHoy.Any())
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-hover mt-3 align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Fecha y Hora</th>
+                    <th>Acción</th>
+                    <th>Ubicación</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.HistorialHoy)
+                {
+                    <tr>
+                        <td>@item.FechaHora.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</td>
+                        <td>
+                            @if (item.Tipo == SistemaFichaje.Models.TipoFichaje.Entrada)
+                            {
+                                <span class="badge bg-success">ENTRADA</span>
+                            }
+                            else if (item.Tipo == SistemaFichaje.Models.TipoFichaje.Salida)
+                            {
+                                <span class="badge bg-danger">SALIDA</span>
+                            }
+                            else if (item.Tipo == SistemaFichaje.Models.TipoFichaje.InicioPausa)
+                            {
+                                <span class="badge bg-warning text-dark">INICIO PAUSA</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-info text-dark">FIN PAUSA</span>
+                            }
+                        </td>
+                        <td>
+                             @if (!string.IsNullOrEmpty(item.Geolocalizacion) && item.Geolocalizacion.Contains(","))
+                            {
+                                <a href="https://www.google.com/maps/search/?api=1&query=@item.Geolocalizacion" 
+                                   target="_blank" 
+                                   class="btn btn-sm btn-outline-primary"
+                                   title="Ver en Google Maps">
+                                    📍 Ver Mapa
+                                </a>
+                                <small class="text-muted ms-2" style="font-size: 0.8em;">(@item.Geolocalizacion)</small>
+                            }
+                            else
+                            {
+                                <span class="text-muted fst-italic">@item.Geolocalizacion</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else
+{
+    <div class="alert alert-warning mt-3" role="alert">
+        📭 No se encontraron registros para este rango de fechas.
+    </div>
+}
 
 <!-- SCRIPT DE GEOLOCALIZACIÓN -->
 <script>
@@ -128,7 +171,7 @@
                 // Error: Avisamos (opcional)
                 function (error) {
                     console.warn("⚠️ No se pudo obtener ubicación:", error.message);
-                    alert("Activa la ubicación para fichar correctamente");
+                    // alert("Activa la ubicación para fichar correctamente"); 
                 }
             );
         } else {
@@ -143,9 +186,6 @@
 
     // Y TAMBIÉN pedimos al hacer clic en cualquier botón del formulario (Doble seguridad)
     document.getElementById("formFichaje").addEventListener("submit", function () {
-        // Intentamos una última actualización rápida antes de enviar, 
-        // aunque el submit suele ser más rápido que el GPS, 
-        // esto asegura que si ya tenemos coords cacheadas, se envíen.
         pedirGeo();
     });
 </script>
